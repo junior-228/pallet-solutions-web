@@ -1,0 +1,3 @@
+# Retired routes -> canonical. Forced (!) so the redirect wins even if a
+# stub page is still generated at the old path.
+/atlas    /market-pulse    301!

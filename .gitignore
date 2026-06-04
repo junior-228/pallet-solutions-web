@@ -1,0 +1,74 @@
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+# dependencies
+/node_modules
+/.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
+
+# testing
+/coverage
+
+# next.js
+/.next/
+/out/
+
+# production
+/build
+
+# misc
+.DS_Store
+*.pem
+
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# env files (can opt-in for committing if needed)
+.env*
+
+# vercel
+.vercel
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts
+
+# --- Added for safe public publishing ---
+# Claude Code local settings (contains an Airtable token - never commit)
+.claude/
+# Netlify local state/build
+.netlify/
+# Private keys, certs, and service-account credentials
+*.key
+*.pem
+*service-account*.json
+*-service-account*.json
+# Env files (explicit, on top of the .env* rule above)
+.env
+.env.local
+.env*.local
+.env.development
+.env.production
+# WIP backups and local dev logs - keep out of the portfolio repo
+*.log
+*.backup.*
+*-backup.*
+
+# local logs and WIP backups
+*.log
+*.backup.*
+*-backup.*
+
+# internal/operational docs - not for the public repo
+AGENTS.md
+CLAUDE.md
+PERSONAS.md
+PSCI_TUESDAY_UPDATE.md
+REBUILD_WIRING.md

@@ -1,0 +1,21 @@
+{
+  "_README": "CURATED, human-verified buy-side context for the /market-pulse 'what's coming this week' box. This is a SEPARATE pipeline from the PSCI cost table: the cost table is auto-generated from federal data; THIS file is hand-curated and link-checked. NO LINK, NO ITEM - every entry must carry a real source_url that a human opened and confirmed (event + figure + date). Do NOT wire raw WARN/NOAA feeds to auto-populate this file - auto-publishing raw feeds surfaces irrelevant closures (e.g. a non-pallet factory) as a pallet signal and destroys credibility. Empty region arrays render the honest 'Quiet week' line; the page never depends on this box being full. Freight is intentionally absent (free freight data is national/monthly only - see Addendum 2 flag A). Region keys match the 6 PS region slugs.",
+  "_EVENT_SHAPE": {
+    "date": "YYYY-MM-DD (the event/filing date, not the scan date)",
+    "location": "City, ST",
+    "type": "warn | weather",
+    "text": "One line: what happened + a one-line buy-side implication (supply/demand signal). Buy-side wording, never sell-side.",
+    "url": "https://... the specific confirming source (required - no link, no item)"
+  },
+  "_HOUSING_SHAPE": "When populated: { month: 'April 2026', momPct: -2.1, directionDemand: 'easing'|'climbing', pressure: 'downward'|'upward', sourceUrl: 'https://www.census.gov/...' }. Monthly + directional (Census new residential construction). Leave null until a real release is verified - the trend sentence is omitted when null.",
+  "as_of": "2026-06-02",
+  "housing": null,
+  "regions": {
+    "northeast": [],
+    "southeast": [],
+    "great-lakes": [],
+    "texas-south-central": [],
+    "plains-mountain": [],
+    "west-coast": []
+  }
+}

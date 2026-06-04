@@ -1,0 +1,546 @@
+@import "tailwindcss";
+
+@theme {
+  --color-brand-50: #f0f8fb;
+  --color-brand-100: #daedf3;
+  --color-brand-200: #b9dde8;
+  --color-brand-300: #8bc6d8;
+  --color-brand-400: #62b1c9;
+  --color-brand-500: #49a5c1;
+  --color-brand-600: #3a8aa3;
+  --color-brand-700: #316f84;
+  --color-brand-800: #2c5d6e;
+  --color-brand-900: #284e5c;
+  --color-brand-950: #16323d;
+
+  --color-ink-900: #0f1d24;
+  --color-ink-800: #1c2e38;
+  --color-ink-700: #2d4250;
+  --color-ink-600: #475866;
+  --color-ink-500: #6a7a86;
+  --color-ink-400: #94a1ab;
+  --color-ink-300: #c2cad1;
+  --color-ink-200: #e0e5e9;
+  --color-ink-100: #eff2f4;
+  --color-ink-50: #f7f9fa;
+
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, -apple-system,
+    "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+/* Vendor-density backdrop dots: a slow, staggered breathe on the denser
+   clusters so the homepage map feels alive without reading as generic-tech.
+   --op is each dot's resting opacity (set per-dot inline). */
+@keyframes psVendorPulse {
+  0%,
+  100% {
+    opacity: var(--op, 0.4);
+  }
+  50% {
+    opacity: calc(var(--op, 0.4) * 1.6);
+  }
+}
+.ps-vendor-dot {
+  opacity: var(--op, 0.4);
+  animation: psVendorPulse 4s ease-in-out infinite;
+  will-change: opacity;
+}
+@media (prefers-reduced-motion: reduce) {
+  .ps-vendor-dot {
+    animation: none;
+    opacity: var(--op, 0.4);
+  }
+}
+
+/* Vendor-network "showcase" dots: appear, pulse, disappear, repeat - the
+   living-map effect from the original network map. Staggered per-dot delay +
+   duration make it twinkle rather than blink in unison. */
+@keyframes psVendorTwinkle {
+  0%,
+  100% {
+    opacity: 0;
+  }
+  30%,
+  70% {
+    opacity: var(--op, 0.6);
+  }
+}
+.ps-vendor-twinkle {
+  opacity: 0;
+  animation: psVendorTwinkle 4.5s ease-in-out infinite;
+  will-change: opacity;
+}
+@media (prefers-reduced-motion: reduce) {
+  .ps-vendor-twinkle {
+    animation: none;
+    opacity: var(--op, 0.6);
+  }
+}
+
+/* Network-style pulsing pin rings (the see-your-network look): a ring expands
+   out from the pin and fades. SVG needs transform-box/origin so the scale is
+   about the circle's own center. Reuses the ported proRing/proRing2 frames. */
+.ps-pin-ring,
+.ps-pin-ring2 {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+.ps-pin-ring {
+  animation: proRing 2.6s ease-out infinite;
+}
+.ps-pin-ring2 {
+  animation: proRing2 3.4s ease-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .ps-pin-ring,
+  .ps-pin-ring2 {
+    animation: none;
+    opacity: 0;
+  }
+}
+
+/* Ambient floating dots - ported VERBATIM from network.palletsolutionsusa.com
+   (see-your-network-enterprise/index.html .bg-dot + dotFloat): dots fade in,
+   drift up, and fade out. Size/color/position/delay/duration set per-dot. */
+.bg-dot {
+  position: absolute;
+  border-radius: 50%;
+  opacity: 0;
+  animation: dotFloat 8s ease-in-out infinite;
+}
+@keyframes dotFloat {
+  0% {
+    opacity: 0;
+    transform: scale(0.5) translateY(30px);
+  }
+  15% {
+    opacity: 0.7;
+  }
+  85% {
+    opacity: 0.7;
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.5) translateY(-30px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .bg-dot {
+    animation: none;
+    opacity: 0.5;
+  }
+}
+
+/* "How it works" step sequence (/sourcing) - scroll-triggered draw-in.
+   Content is visible by DEFAULT; the .hiw--armed class (added by JS on mount)
+   is what enables the hidden start state, so no-JS / pre-hydration / a fast
+   scroller always see readable steps. The connector line's top + height are
+   set in JS so it runs exactly through the first and last circle centers. */
+.hiw__steps {
+  position: relative;
+  list-style: none;
+  padding: 0;
+}
+.hiw__line {
+  position: absolute;
+  left: 19px; /* circle is 40px wide, center 20px; 2px line */
+  top: 20px; /* overwritten by JS measurement */
+  width: 2px;
+  height: 0; /* set by JS */
+  background: #49a5c1;
+  transform-origin: top;
+}
+.hiw__step {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 20px;
+  padding-bottom: 40px;
+}
+.hiw__step:last-child {
+  padding-bottom: 0;
+}
+.hiw__circle {
+  flex: 0 0 auto;
+  width: 40px;
+  height: 40px;
+  border-radius: 9999px;
+  background: #49a5c1;
+  color: #fff;
+  display: grid;
+  place-items: center;
+  font-weight: 700;
+  font-size: 14px;
+  position: relative;
+  z-index: 1; /* sit above the line */
+}
+
+/* Armed = JS active: install the hidden start state + transitions. */
+.hiw--armed .hiw__line {
+  transform: scaleY(0);
+  transition: transform 700ms ease-out;
+}
+.hiw--armed .hiw__step {
+  opacity: 0;
+  transform: translateY(16px);
+  transition: opacity 400ms ease-out, transform 400ms ease-out;
+  transition-delay: calc(var(--i) * 120ms);
+}
+.hiw--armed .hiw__circle {
+  transform: scale(0.8);
+  transition: transform 300ms ease-out;
+  transition-delay: calc(var(--i) * 120ms);
+}
+
+/* In view: play it - line draws top to bottom, steps cascade, circles pop. */
+.hiw--armed.hiw--in .hiw__line {
+  transform: scaleY(1);
+}
+.hiw--armed.hiw--in .hiw__step {
+  opacity: 1;
+  transform: translateY(0);
+}
+.hiw--armed.hiw--in .hiw__circle {
+  transform: scale(1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hiw--armed .hiw__line {
+    transform: scaleY(1);
+    transition: none;
+  }
+  .hiw--armed .hiw__step {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+  .hiw--armed .hiw__circle {
+    transform: scale(1);
+    transition: none;
+  }
+}
+
+/* "The Program Loop" diagram (/sourcing) - companion to the How-it-works step
+   sequence. Same engine/easing/stagger(120ms)/color/circle-pop, but it flows
+   HORIZONTALLY (left to right) on reveal, then gently CYCLES forever, while the
+   steps draw vertically and rest. Visible by default; .pl--armed (JS on mount)
+   installs the hidden start state. */
+.pl--armed .pl__node {
+  opacity: 0;
+  transform: scale(0.8);
+  transition: opacity 400ms ease-out, transform 300ms ease-out;
+  transition-delay: calc(var(--i) * 120ms);
+}
+.pl--armed .pl__arrow {
+  opacity: 0;
+  transition: opacity 400ms ease-out;
+  transition-delay: calc(var(--i) * 120ms + 60ms); /* arrow lands after its node */
+}
+.pl--armed .pl__pill {
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity 400ms ease-out, transform 400ms ease-out;
+  transition-delay: 720ms; /* after the last node */
+}
+.pl--armed.pl--in .pl__node {
+  opacity: 1;
+  transform: scale(1);
+}
+.pl--armed.pl--in .pl__arrow {
+  opacity: 1;
+}
+.pl--armed.pl--in .pl__pill {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Continuous LOOP (starts only once in view): a brightness wave travels L->R
+   across the arrows every 5s, and the pill + its refresh icon gently breathe,
+   so the diagram reads as a repeating cycle, not a one-way line. The arrow
+   pulse animates `color` (currentColor), so it never conflicts with the
+   reveal's opacity transition. */
+@keyframes plArrowFlow {
+  0%,
+  100% {
+    color: var(--color-brand-300);
+  }
+  8% {
+    color: var(--color-brand-500);
+  }
+  22% {
+    color: var(--color-brand-300);
+  }
+}
+.pl--in .pl__arrow {
+  animation: plArrowFlow 5s ease-in-out infinite;
+  animation-delay: calc(var(--i) * 200ms + 1200ms);
+}
+@keyframes plPillBreathe {
+  0%,
+  100% {
+    transform: translateY(0) scale(1);
+    box-shadow: 0 0 0 rgba(73, 165, 193, 0);
+  }
+  50% {
+    transform: translateY(0) scale(1.03);
+    box-shadow: 0 6px 18px rgba(73, 165, 193, 0.18);
+  }
+}
+.pl--in .pl__pill {
+  animation: plPillBreathe 5s ease-in-out infinite;
+  animation-delay: 1800ms;
+}
+@keyframes plIconSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.pl--in .pl__pill-icon {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: plIconSpin 5s linear infinite;
+  animation-delay: 1800ms;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pl--armed .pl__node,
+  .pl--armed .pl__arrow,
+  .pl--armed .pl__pill {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+  .pl--in .pl__arrow,
+  .pl--in .pl__pill,
+  .pl--in .pl__pill-icon {
+    animation: none;
+  }
+}
+
+/* "What transfers off your team" table (/sourcing) - third piece of the motion
+   system. Rows assemble top-to-bottom on reveal (same engine/easing/120ms
+   stagger/color), the blue total row lands a beat last, then it sits static.
+   ONLY the row entrance animates - never the numbers. Visible by default;
+   .wtt--armed (JS on mount) installs the hidden start state. Transition is
+   limited to opacity + transform so the hover tint stays instant (not delayed
+   by each row's stagger). */
+.wtt--armed .wtt__row {
+  opacity: 0;
+  transform: translateY(10px);
+  transition-property: opacity, transform;
+  transition-duration: 400ms;
+  transition-timing-function: ease-out;
+  transition-delay: calc(var(--i) * 120ms);
+}
+.wtt--armed .wtt__total {
+  /* a beat after the last data row, so the eye ends on the payoff */
+  transition-delay: calc(var(--i) * 120ms + 140ms);
+}
+.wtt--armed.wtt--in .wtt__row {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wtt--armed .wtt__row {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+}
+
+/* Goal checklist (/rfp) - part of the motion system. Items fade + slide in
+   staggered top-to-bottom, each checkmark pops, once. Visible by default;
+   .ckl--armed (JS on mount) installs the hidden start state. */
+.ckl--armed .ckl__item {
+  opacity: 0;
+  transform: translateY(10px);
+  transition: opacity 400ms ease-out, transform 400ms ease-out;
+  transition-delay: calc(var(--i) * 120ms);
+}
+.ckl--armed .ckl__check {
+  transform: scale(0.6);
+  transition: transform 300ms ease-out;
+  transition-delay: calc(var(--i) * 120ms);
+}
+.ckl--armed.ckl--in .ckl__item {
+  opacity: 1;
+  transform: translateY(0);
+}
+.ckl--armed.ckl--in .ckl__check {
+  transform: scale(1);
+}
+@media (prefers-reduced-motion: reduce) {
+  .ckl--armed .ckl__item,
+  .ckl--armed .ckl__check {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+}
+
+/* Generic scroll-reveal (used across /procurement and reusable elsewhere) -
+   the shared motion engine. `reveal-item` fades + slides up staggered;
+   `reveal-pop` scales in (numbers, checkmarks). Visible by default; JS adds
+   .reveal--armed to install the hidden start state. */
+.reveal--armed .reveal-item {
+  opacity: 0;
+  transform: translateY(12px);
+  transition: opacity 400ms ease-out, transform 400ms ease-out;
+  transition-delay: calc(var(--i) * 120ms);
+}
+.reveal--armed .reveal-pop {
+  transform: scale(0.7);
+  transition: transform 300ms ease-out;
+  transition-delay: calc(var(--i) * 120ms);
+}
+.reveal--armed.reveal--in .reveal-item {
+  opacity: 1;
+  transform: translateY(0);
+}
+.reveal--armed.reveal--in .reveal-pop {
+  transform: scale(1);
+}
+@media (prefers-reduced-motion: reduce) {
+  .reveal--armed .reveal-item,
+  .reveal--armed .reveal-pop {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+}
+
+/* Animated FAQ accordion panel - smooth open/close via grid-template-rows,
+   no height measuring, no layout jump. */
+.faq-acc__panel {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 300ms ease-out;
+}
+.faq-acc__panel[data-open="true"] {
+  grid-template-rows: 1fr;
+}
+.faq-acc__panel > div {
+  overflow: hidden;
+}
+@media (prefers-reduced-motion: reduce) {
+  .faq-acc__panel {
+    transition: none;
+  }
+}
+
+/* Tuesday Read forecast confidence band - fills left-to-right on view, median
+   marker settles after. Numbers stay static (rendered separately). */
+.fcb__band {
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 600ms ease-out;
+}
+.fcb--in .fcb__band {
+  transform: scaleX(1);
+}
+.fcb__median {
+  opacity: 0;
+  transition: opacity 300ms ease-out 480ms;
+}
+.fcb--in .fcb__median {
+  opacity: 1;
+}
+@media (prefers-reduced-motion: reduce) {
+  .fcb__band {
+    transform: scaleX(1);
+    transition: none;
+  }
+  .fcb__median {
+    opacity: 1;
+    transition: none;
+  }
+}
+
+body {
+  background: #ffffff;
+  color: var(--color-ink-900);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+@keyframes fadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Leaflet vendor-pin animations -- ported verbatim from the network site
+   (see-your-network-enterprise/index.html). Used by the divIcon HTML
+   rendered for enhanced ("pro") pins on the vendors-prototype map. */
+@keyframes proPulse {
+  0%, 100% {
+    box-shadow:
+      0 0 12px rgba(73, 165, 193, 1),
+      0 0 30px rgba(73, 165, 193, 0.8),
+      0 0 60px rgba(73, 165, 193, 0.4),
+      0 0 90px rgba(73, 165, 193, 0.15);
+    transform: scale(1);
+  }
+  50% {
+    box-shadow:
+      0 0 20px rgba(100, 200, 230, 1),
+      0 0 45px rgba(73, 165, 193, 0.9),
+      0 0 80px rgba(73, 165, 193, 0.5),
+      0 0 120px rgba(73, 165, 193, 0.2);
+    transform: scale(1.18);
+  }
+}
+@keyframes proRing {
+  0% { transform: scale(1); opacity: 0.8; }
+  100% { transform: scale(2.8); opacity: 0; }
+}
+@keyframes proRing2 {
+  0% { transform: scale(1); opacity: 0.5; }
+  100% { transform: scale(3.5); opacity: 0; }
+}
+/* One-shot pulse for the vendor's own map pin - plays each time the pin
+   re-renders on a discrete listing-strength gain (field or boost added). */
+@keyframes psOwnPulse {
+  0% { transform: scale(0.82); }
+  55% { transform: scale(1.1); }
+  100% { transform: scale(1); }
+}
+/* Claimed-reveal celebration: the check badge pops in, a ring bursts out. */
+@keyframes psPop {
+  0% { transform: scale(0.4); opacity: 0; }
+  60% { transform: scale(1.12); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+@keyframes psBurst {
+  0% { transform: scale(0.85); opacity: 0.55; }
+  100% { transform: scale(2.6); opacity: 0; }
+}
+/* Just-added confirmation: a green ring bursts out from the vendor's map dot
+   when the buyer adds it to the shortlist, so the pick registers visually. */
+@keyframes psAddPulse {
+  0% { transform: scale(0.6); opacity: 0.75; }
+  100% { transform: scale(2.5); opacity: 0; }
+}
+/* Indeterminate submit bar: a blue segment sweeps left -> right while a form
+   submission is in flight (claim, edit, waitlist, self-add). Used by the
+   <SubmitBar> component. */
+@keyframes psBarSlide {
+  0% { transform: translateX(-120%); }
+  100% { transform: translateX(320%); }
+}
