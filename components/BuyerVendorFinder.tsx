@@ -49,6 +49,7 @@ import { useLiveVendorOverlay, applyOverlay } from "@/lib/useLiveVendorOverlay";
 import { FUNCTIONS_BASE } from "@/lib/functionsBase";
 import { VendorPublicCard, TrustBadge } from "@/components/VendorPublicCard";
 import type { VendorPublicEntry, VendorStatus as SharedVendorStatus } from "@/lib/vendor-types";
+import { isInternationalEntry } from "@/lib/vendor-types";
 
 // === TYPES ===================================================================
 
@@ -114,6 +115,10 @@ const RADIUS_OPTIONS = [25, 50, 100, 150];
 const MIN_RESULTS = 6;
 
 const VENDOR_INDEX_URL = "/vendor-index.json";
+// International vendors (Canada / Mexico / EU). Loaded as a SEPARATE file and
+// merged at runtime so the US index is never affected: a missing or empty
+// file degrades to "US only" and never breaks the domestic finder.
+const INTL_VENDOR_INDEX_URL = "/vendor-index-intl.json";
 
 // Server-side endpoints on the network site (the only "backend" the buyer
 // tool touches). Background fetch, not a redirect. If these are not yet
@@ -404,13 +409,23 @@ function makeDcPinHtml(label: string): string {
 
 // === GEOCODE (OSM Nominatim - same path the vendor side already uses) =======
 
+// Countries Pallet Solutions covers. A typed place is resolved within these so it
+// lands in the right country instead of silently defaulting to the US.
+const SERVED_COUNTRY_CODES = "us,ca,mx,de,gb,pl,fr,es,it,nl,be,ie";
+
 async function geocodePlace(query: string): Promise<DC | null> {
   const raw = query.trim();
   if (!raw) return null;
-  const q = encodeURIComponent(`${raw}, USA`);
+  // A bare US-style ZIP keeps the original, US-pinned path EXACTLY (zip codes collide
+  // internationally - e.g. "30301" also matches Kraków "30-301"). Anything with letters
+  // ("City, ST", "City, Country", "RG30 4QA") is resolved across all served countries:
+  // we no longer force ", USA", which had turned "Edmonton, AB" into Edmonton, Kentucky.
+  const isUsZip = /^\d{5}(-\d{4})?$/.test(raw);
+  const q = encodeURIComponent(isUsZip ? `${raw}, USA` : raw);
+  const countrycodes = isUsZip ? "us,ca,mx" : SERVED_COUNTRY_CODES;
   try {
     const res = await fetch(
-      `https://nominatim.openstreetmap.org/search?q=${q}&format=json&limit=1&countrycodes=us,ca,mx`,
+      `https://nominatim.openstreetmap.org/search?q=${q}&format=json&limit=1&countrycodes=${countrycodes}`,
       { headers: { Accept: "application/json" } }
     );
     if (!res.ok) return null;
@@ -653,6 +668,18 @@ export default function BuyerVendorFinder() {
   const shortlistCap = PER_DC_CAP * Math.max(1, dcs.length);
 
   function toggleSelect(id: string) {
+    // International listings are display-only: block them from the shortlist,
+    // which is the single gateway to reveal / send / RFQ (all keyed off
+    // selectedIds). This keeps the US-only email + Supabase paths untouched.
+    if (internationalIdsRef.current.has(id)) {
+      setSelectionNudge(
+        "International listings are display-only for now - direct contact is rolling out."
+      );
+      if (typeof window !== "undefined") {
+        window.setTimeout(() => setSelectionNudge(null), 4000);
+      }
+      return;
+    }
     setSelectedIds((prev) => {
       const next = new Set(prev);
       if (next.has(id)) {
@@ -949,21 +976,41 @@ export default function BuyerVendorFinder() {
   const leafletRef = useRef<any>(null);
   const [leafletReady, setLeafletReady] = useState(false);
 
-  // ---- load the index ----
+  // Ids of international (display-only) vendors, populated when the intl index
+  // loads. Read by the shortlist/reveal/RFQ gate so those US-only flows never
+  // fire for an international listing.
+  const internationalIdsRef = useRef<Set<string>>(new Set());
+
+  // ---- load the index (US required; international merged in, best-effort) ----
   useEffect(() => {
     let cancelled = false;
-    fetch(VENDOR_INDEX_URL)
-      .then((r) => {
-        if (!r.ok) throw new Error(`index HTTP ${r.status}`);
-        return r.json();
-      })
-      .then((data: VendorEntry[]) => {
+    const cleanRows = (data: unknown): VendorEntry[] =>
+      (Array.isArray(data) ? (data as VendorEntry[]) : []).filter(
+        (v) => typeof v.lat === "number" && typeof v.lng === "number"
+      );
+    // US index is required. The international index is OPTIONAL: a missing,
+    // empty, or failed fetch degrades to an empty list, so the domestic finder
+    // is never affected by the international layer.
+    const usP = fetch(VENDOR_INDEX_URL).then((r) => {
+      if (!r.ok) throw new Error(`index HTTP ${r.status}`);
+      return r.json();
+    });
+    const intlP = fetch(INTL_VENDOR_INDEX_URL)
+      .then((r) => (r.ok ? r.json() : []))
+      .catch(() => []);
+    Promise.all([usP, intlP])
+      .then(([usData, intlData]) => {
         if (cancelled) return;
-        // Defensive: coerce status + ensure numbers.
-        const clean = (Array.isArray(data) ? data : []).filter(
-          (v) => typeof v.lat === "number" && typeof v.lng === "number"
+        // US rows that predate the country field are tagged domestic.
+        const us = cleanRows(usData).map((v) =>
+          v.country ? v : { ...v, country: "United States" }
         );
-        setRawVendorIndex(clean);
+        const seen = new Set(us.map((v) => v.id));
+        const intl = cleanRows(intlData).filter((v) => !seen.has(v.id));
+        internationalIdsRef.current = new Set(
+          intl.filter(isInternationalEntry).map((v) => v.id)
+        );
+        setRawVendorIndex([...us, ...intl]);
         setIndexLoading(false);
       })
       .catch((e) => {
@@ -2994,25 +3041,39 @@ function VendorCard(props: {
   // action surface.
   const footer = (
     <div className="border-t border-ink-100 bg-ink-50/50 p-5">
-      <button
-        type="button"
-        onClick={onToggleSelect}
-        aria-pressed={isSelected}
-        className={`w-full rounded-lg px-4 py-3 text-sm font-semibold transition-colors ${
-          isSelected
-            ? "border border-emerald-300 bg-emerald-50 text-emerald-800 hover:bg-emerald-100"
-            : "bg-brand-500 text-white hover:bg-brand-600"
-        }`}
-      >
-        {isSelected
-          ? "Added to shortlist ✓ - tap to remove"
-          : "Add to shortlist"}
-      </button>
-      <p className="mt-2 text-center text-xs leading-relaxed text-ink-500">
-        {isSelected
-          ? 'Click "Request quotes" in the tray below when your shortlist is ready. We send to vendors with email on file and surface phone numbers for the rest.'
-          : "Build a shortlist (up to 3 per DC), then describe your need once. We send where we can and surface phones where we can't."}
-      </p>
+      {isInternationalEntry(v) ? (
+        <>
+          <div className="w-full rounded-lg border border-ink-200 bg-white px-4 py-3 text-center text-sm font-semibold text-ink-500">
+            International listing{v.country ? ` - ${v.country}` : ""}
+          </div>
+          <p className="mt-2 text-center text-xs leading-relaxed text-ink-500">
+            Searchable and mappable now. Direct contact for international
+            vendors is rolling out.
+          </p>
+        </>
+      ) : (
+        <>
+          <button
+            type="button"
+            onClick={onToggleSelect}
+            aria-pressed={isSelected}
+            className={`w-full rounded-lg px-4 py-3 text-sm font-semibold transition-colors ${
+              isSelected
+                ? "border border-emerald-300 bg-emerald-50 text-emerald-800 hover:bg-emerald-100"
+                : "bg-brand-500 text-white hover:bg-brand-600"
+            }`}
+          >
+            {isSelected
+              ? "Added to shortlist ✓ - tap to remove"
+              : "Add to shortlist"}
+          </button>
+          <p className="mt-2 text-center text-xs leading-relaxed text-ink-500">
+            {isSelected
+              ? 'Click "Request quotes" in the tray below when your shortlist is ready. We send to vendors with email on file and surface phone numbers for the rest.'
+              : "Build a shortlist (up to 3 per DC), then describe your need once. We send where we can and surface phones where we can't."}
+          </p>
+        </>
+      )}
 
       {/* Revealed contact carries through if the buyer revealed this
           vendor on the unified screen and circled back to the card. */}

@@ -38,7 +38,21 @@ export type VendorPublicEntry = {
   // (future cleanup), so today the only producer is the /vendors
   // BrowsingPanel sample feeding the prop directly.
   foundingMember?: boolean;
+  // Country of the listing. Absent / "" / "United States" = domestic and
+  // runs the full buyer flow. Any other value (Canada, Mexico, an EU
+  // country) marks an INTERNATIONAL listing: searchable + mappable, but
+  // display-only -- no shortlist / reveal / RFQ, since those hit the
+  // US-only email + Supabase paths. See isInternationalEntry().
+  country?: string;
+  region?: string;
 };
+
+// True for international listings (anything not US). Used to gate the
+// shortlist/reveal/send actions so international rows stay display-only.
+export function isInternationalEntry(v: { country?: string }): boolean {
+  const c = (v.country || "").trim();
+  return c !== "" && c !== "United States";
+}
 
 // Strings rendered next to each tier's dot/pill across every surface.
 // Keep in sync with the pill copy in TrustBadge below.

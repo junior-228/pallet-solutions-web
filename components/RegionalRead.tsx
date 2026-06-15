@@ -296,7 +296,7 @@ export default function RegionalRead({
               {/* key={active} so switching tabs gives a quick re-reveal */}
               <div key={active} className="mp-reveal">
                 <RegionalReport
-                  region={activeRegion}
+                  region={{ ...activeRegion, wowPct: activeRegion.wowPct ?? null }}
                   nationalPsci={nationalPsci}
                   nationalWowPct={nationalWowPct}
                   forecastPct={forecastPct}

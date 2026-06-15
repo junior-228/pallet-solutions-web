@@ -10,6 +10,24 @@
 //
 // Writes to: pallet-solutions-web/public/vendor-index.json
 //
+// === COMPANION FILE: public/vendor-index-intl.json (international) ===
+//
+// International vendors (Canada / Mexico / EU) do NOT live in the Airtable
+// Vendors table this script reads -- they live in Supabase
+// (public.international_vendors, exposed via the public.international_vendor_public_read
+// view). The buyer finder loads vendor-index-intl.json SEPARATELY and merges it
+// at runtime (a missing file degrades to "US only", never breaks the US finder).
+//
+// To regenerate vendor-index-intl.json, pull the view and map each row to the
+// same shape used here (id, name, city, state, lat, lng, status) PLUS country/region:
+//   SELECT id,name,lat,lng,country,region,classifications,google_address
+//     FROM international_vendor_public_read;
+//   -> city: ""  (precise positioning is lat/lng; address parsing varies by locale)
+//      state: region ? `${region}, ${country}` : country   (e.g. "Alberta, Canada")
+//      status: "listed"   classification: classifications[]
+// International rows are DISPLAY-ONLY in the finder (no reveal/RFQ), so contact
+// fields are intentionally omitted here just as they are for the US file above.
+//
 // === WHAT'S IN THE JSON (2026-05-29 Phase 0 expansion) ===
 //
 //   id, name, city, state, lat, lng, status        (always)
