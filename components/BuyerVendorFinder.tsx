@@ -404,13 +404,23 @@ function makeDcPinHtml(label: string): string {
 
 // === GEOCODE (OSM Nominatim - same path the vendor side already uses) =======
 
+// Countries Pallet Solutions covers. A typed place is resolved within these so it
+// lands in the right country instead of silently defaulting to the US.
+const SERVED_COUNTRY_CODES = "us,ca,mx,de,gb,pl,fr,es,it,nl,be,ie";
+
 async function geocodePlace(query: string): Promise<DC | null> {
   const raw = query.trim();
   if (!raw) return null;
-  const q = encodeURIComponent(`${raw}, USA`);
+  // A bare US-style ZIP keeps the original, US-pinned path EXACTLY (zip codes collide
+  // internationally - e.g. "30301" also matches Kraków "30-301"). Anything with letters
+  // ("City, ST", "City, Country", "RG30 4QA") is resolved across all served countries:
+  // we no longer force ", USA", which had turned "Edmonton, AB" into Edmonton, Kentucky.
+  const isUsZip = /^\d{5}(-\d{4})?$/.test(raw);
+  const q = encodeURIComponent(isUsZip ? `${raw}, USA` : raw);
+  const countrycodes = isUsZip ? "us,ca,mx" : SERVED_COUNTRY_CODES;
   try {
     const res = await fetch(
-      `https://nominatim.openstreetmap.org/search?q=${q}&format=json&limit=1&countrycodes=us,ca,mx`,
+      `https://nominatim.openstreetmap.org/search?q=${q}&format=json&limit=1&countrycodes=${countrycodes}`,
       { headers: { Accept: "application/json" } }
     );
     if (!res.ok) return null;
